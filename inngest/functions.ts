@@ -1,7 +1,8 @@
 import { inngest } from "./client";
 import ImageKit from "imagekit";
 import OpenAI from "openai";
-import { AiThumbnailTable, AiContentTable } from "@/configs/schema";
+import axios from "axios";
+import { AiThumbnailTable, AiContentTable, TrendingKeywordsTable } from "@/configs/schema";
 import { db } from "@/configs/db";
 import moment from "moment";
 
@@ -382,6 +383,199 @@ export const GenerateAIContent = inngest.createFunction(
     return {
       ...generateAiContent,
       thumbnailUrl: uploadThumbnail,
+    };
+  }
+);
+
+
+export const GetTrendingKeywords = inngest.createFunction(
+  { id: "ai/getTrendingKeywords" },
+  { event: "ai/getTrendingKeywords" },
+  async ({ event, step }) => {
+    const { keyword, userEmail } = await event.data;
+
+    // Step 1: Get Google Search Results using Bright Data
+    const googleResults = await step.run("GetGoogleResults", async () => {
+      try {
+        console.log("Fetching Google search results for:", keyword);
+        
+        // Bright Data Web Scraper API - Scrape Google Videos tab
+        const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(keyword)}&tbm=vid`;
+        
+        const response = await axios.post(
+          "https://api.brightdata.com/request",
+          {
+            zone: "tubepulse_dev",
+            url: googleSearchUrl,
+            format: "json",
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.BRIGHTDATA_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        console.log("Google results fetched:", response.data);
+        return response.data || { videos: [] };
+      } catch (error) {
+        console.error("Error fetching Google results:", error);
+        return { error: "Failed to fetch Google results", videos: [] };
+      }
+    });
+
+    // Step 2: Get YouTube Search Results using YouTube API
+    const youtubeResults = await step.run("GetYouTubeResults", async () => {
+      try {
+        console.log("Fetching YouTube search results for:", keyword);
+        
+        const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}&type=video&maxResults=10&key=${process.env.YOUTUBE_API_KEY}`;
+        
+        const response = await fetch(youtubeApiUrl);
+        
+        if (!response.ok) {
+          console.error("YouTube API error:", response.statusText);
+          return { error: "Failed to fetch YouTube results", items: [] };
+        }
+
+        const data = await response.json();
+        console.log("YouTube results fetched:", data.items?.length || 0, "videos");
+        
+        // Extract relevant info
+        const videos = data.items?.map((item: any) => ({
+          title: item.snippet.title,
+          channelTitle: item.snippet.channelTitle,
+          publishedAt: item.snippet.publishedAt,
+          videoId: item.id.videoId,
+        })) || [];
+
+        return { items: videos };
+      } catch (error) {
+        console.error("Error fetching YouTube results:", error);
+        return { error: "Failed to fetch YouTube results", items: [] };
+      }
+    });
+
+    // Step 2.5: Extract Titles from Both Sources
+    const extractedTitles = await step.run("ExtractTitles", async () => {
+      // Extract Google video titles
+      let googleTitles: string[] = [];
+      if (googleResults?.body) {
+        try {
+          const nestedJson = JSON.parse(googleResults.body);
+          googleTitles = nestedJson?.organic?.map((element: any) => element?.title).filter(Boolean) || [];
+        } catch (e) {
+          console.log("Could not parse Google nested JSON");
+        }
+      }
+      
+      // Extract YouTube video titles
+      const youtubeTitles = youtubeResults.items?.map((item: any) => item?.snippet?.title).filter(Boolean) || [];
+      
+      console.log("Google Titles:", googleTitles.length);
+      console.log("YouTube Titles:", youtubeTitles.length);
+      
+      return {
+        googleTitles,
+        youtubeTitles,
+        allTitles: [...googleTitles, ...youtubeTitles]
+      };
+    });
+
+    // Step 3: AI Model to Generate Keywords with SEO Scores
+    const aiKeywords = await step.run("GenerateAIKeywords", async () => {
+      try {
+        console.log("Generating AI keywords with SEO scores...");
+        
+        const allTitlesText = extractedTitles.allTitles.join("\n");
+        
+        const prompt = `You are a YouTube SEO expert analyzing trending content. Based on the video titles below, extract trending keywords and topics.
+
+**Search Keyword:** "${keyword}"
+
+**Video Titles from Google Videos Tab (Top ranking across the web):**
+${extractedTitles.googleTitles.slice(0, 20).join("\n")}
+
+**Video Titles from YouTube Search (Platform-specific trends):**
+${extractedTitles.youtubeTitles.slice(0, 20).join("\n")}
+
+**Analysis Required:**
+Analyze the video titles, patterns, and trends to generate:
+
+1. **trending_keywords**: Array of 20 objects with keyword and SEO score (1-100). Extract keywords from actual video titles and add related high-value terms. SEO score should reflect search volume potential and competition. Format: [{"keyword": "keyword text", "seo_score": 85}, ...]
+
+2. **trending_topics**: Array of 8 specific sub-topics or angles that are trending within this keyword based on the video titles
+
+Return ONLY valid JSON, no markdown, no explanation:
+
+{
+  "trending_keywords": [
+    {"keyword": "keyword1", "seo_score": 92},
+    {"keyword": "keyword2", "seo_score": 88}
+  ],
+  "trending_topics": ["topic1", "topic2", "topic3", ...]
+}`;
+
+        const completion = await groq.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 2500,
+        });
+
+        const rawJson = completion.choices[0].message.content;
+        const cleanedJson = rawJson?.replace(/```json/g, "").replace(/```/g, "").trim();
+        const parsedData = cleanedJson ? JSON.parse(cleanedJson) : {};
+        
+        console.log("AI keywords generated:", parsedData);
+        return parsedData;
+      } catch (error) {
+        console.error("Error generating AI keywords:", error);
+        return {
+          trending_keywords: [],
+          trending_topics: [],
+        };
+      }
+    });
+
+    // Step 4: Save Data to Database
+    const saveToDb = await step.run("SaveToDatabase", async () => {
+      try {
+        console.log("Saving trending keywords to database...");
+        
+        const result = await db
+          .insert(TrendingKeywordsTable)
+          .values({
+            keyword: keyword,
+            googleResults: JSON.stringify(googleResults),
+            youtubeResults: JSON.stringify(youtubeResults),
+            aiKeywords: JSON.stringify(aiKeywords),
+            userEmail: userEmail,
+            createdOn: moment().format("YYYY-MM-DD"),
+          })
+          .returning();
+        
+        console.log("✅ Trending keywords saved to DB");
+        return result;
+      } catch (error) {
+        console.error("❌ DB save failed (non-blocking):", error);
+        return null;
+      }
+    });
+
+    // Return combined results
+    return {
+      keyword,
+      googleResults,
+      youtubeResults,
+      aiKeywords,
+      savedToDb: saveToDb !== null,
     };
   }
 );

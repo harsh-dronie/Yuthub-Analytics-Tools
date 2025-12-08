@@ -23,3 +23,13 @@ export const AiContentTable = pgTable("AiContent", {
   userEmail: varchar().references(() => usersTable.email),
   createdOn: varchar(),
 });
+
+export const TrendingKeywordsTable = pgTable("TrendingKeywords", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  keyword: varchar(),
+  googleResults: varchar(),
+  youtubeResults: varchar(),
+  aiKeywords: varchar(),
+  userEmail: varchar().references(() => usersTable.email),
+  createdOn: varchar(),
+});

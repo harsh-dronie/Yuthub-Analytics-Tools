@@ -6,6 +6,8 @@ import Image from "next/image";
 import { ArrowUp, ImagePlus, Loader2, User, X } from "lucide-react";
 import { RunStatus } from "@/services/GlobalApi";
 import ThumbnailList from "./_components/ThumbnailList";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 function AiThumbnailGenerator() {
   const [userInput, setUserInput] = useState<string>();
@@ -15,6 +17,7 @@ function AiThumbnailGenerator() {
   const [faceImagePreview, setFaceImagePreview] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [outputThumbnailImage, setOutputThumbnailImage] = useState<string>("");
+  const { has } = useAuth();
 
   const onHandleFileChange = (field: string, e: any) => {
     const selectedFile = e.target.files[0];
@@ -28,6 +31,19 @@ function AiThumbnailGenerator() {
   };
 
   const onSubmit = async (): Promise<void> => {
+    // Check premium access first
+    //@ts-ignore
+    const hasPremiumAccess = has({ plan: "premium_plan" });
+    if (!hasPremiumAccess) {
+      toast.error("Please subscribe to Premium Plan to use this feature", {
+        action: {
+          label: "Upgrade",
+          onClick: () => (window.location.href = "/billing"),
+        },
+      });
+      return;
+    }
+
     setLoading(true);
     const formData = new FormData();
     userInput && formData.append("userInput", userInput);
