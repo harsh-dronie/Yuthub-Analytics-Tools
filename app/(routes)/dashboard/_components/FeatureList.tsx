@@ -31,7 +31,7 @@ const Features = [
     id: 5,
     title: "Trending Keywords ",
     image: "/feature5.png",
-    path: "#",
+    path: "/trending-keywords",
   },
   {
     id: 6,

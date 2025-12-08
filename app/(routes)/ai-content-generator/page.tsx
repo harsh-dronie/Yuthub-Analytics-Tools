@@ -4,6 +4,8 @@ import { Loader2, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 import axios from "axios";
 import ContentDisplay from "./_components/contentDisplay";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 export type Content = {
   id: number;
@@ -27,8 +29,26 @@ function AiContentGenerator() {
   const [userInput, setUserInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [content, setContent] = useState<Content>();
+  const {has} = useAuth();
 
   const onGenerate = async () => {
+    // Check premium access first
+    //@ts-ignore
+    const hasPremiumAccess = has({ plan: "premium_plan" });
+    
+    // TEMPORARY: Set to false to test toast message
+    const testMode = false; // Change to true to test without premium
+    
+    if (!hasPremiumAccess && !testMode) {
+      toast.error("Please subscribe to Premium Plan to use this feature", {
+        action: {
+          label: "Upgrade",
+          onClick: () => (window.location.href = "/billing"),
+        },
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       setContent(undefined); // Clear old content before generating new

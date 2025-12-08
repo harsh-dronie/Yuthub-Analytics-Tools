@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Calendar,
+  CreditCard,
   GalleryThumbnails,
   Gauge,
   Home,
@@ -20,10 +21,10 @@ import {
   Inbox,
   Lightbulb,
   Search,
-  Settings,
+  User,
 } from "lucide-react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { Logo } from "./Logo";
 
 const items = [
   {
@@ -53,9 +54,19 @@ const items = [
     icon: Lightbulb,
   },
   {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
+    title: "Trending Keywords",
+    url: "/trending-keywords",
+    icon: Search,
+  },
+  {
+    title: "Billing",
+    url: "/billing",
+    icon: CreditCard,
+  },
+  {
+    title: "Profile",
+    url: "/profile",
+    icon: User,
   },
 ];
 
@@ -64,15 +75,8 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="p-4  ">
-          <Image
-            src={"/logo.png"}
-            alt="logo"
-            width={100}
-            height={100}
-            className="w-full"
-          />
-          <h2 className="text-sm text-gray-400 text-center">Build Awesome</h2>
+        <div className="p-4 flex justify-center">
+          <Logo className="w-full" />
         </div>
       </SidebarHeader>
       <SidebarContent>
