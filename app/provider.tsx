@@ -1,33 +1,29 @@
-"use client"
+"use client";
 
-import { useUser } from '@clerk/nextjs';
-import axios from 'axios';
-import React, { useContext, useEffect, useState } from 'react'
-
+import { useUser } from "@clerk/nextjs";
+import axios from "axios";
+import React, { useContext, useEffect, useState } from "react";
 
 function Provider({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
-
-    const { user } = useUser();
-    useEffect(() => {
-        user && createNewUser();
-    }, [user]);
-
-    const createNewUser = async () => {
-        const result = await axios.post('/api/user');
+  const { user } = useUser();
+  const createNewUser = async () => {
+    try {
+      const result = await axios.post("/api");
+      // You can use result.data here if needed
+    } catch (error) {
+      console.error("Error creating user:", error);
     }
+  };
 
-    return (
-        <div>
-            {children}
-        </div>
-    )
+  useEffect(() => {
+    user && createNewUser();
+  }, [user]);
+
+  return <div>{children}</div>;
 }
 
-
-
-export default Provider
-
+export default Provider;
