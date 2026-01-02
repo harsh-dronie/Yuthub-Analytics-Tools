@@ -1,41 +1,56 @@
 YouTube Analytics Platform
 
-A full-stack web platform for analyzing YouTube channel and video performance and generating AI-driven content insights.
+A web application for analyzing YouTube channel and video performance and generating data-driven content ideas.
 
-Tech Stack
+Built as a full-stack project using Next.js, TypeScript, background jobs, and third-party APIs.
 
-Next.js (App Router), React, TypeScript
+What it does
+
+Fetches and analyzes channel and video metrics using the YouTube Data API
+
+Authenticates users securely with Google OAuth 2.0
+
+Displays performance trends through a React-based analytics dashboard
+
+Uses AI models (Gemini and Grok) to suggest content ideas and optimize titles
+
+Runs background workflows with Inngest for analytics processing and data collection
+
+Uses BrightData for scalable data gathering
+
+Tech stack
+
+Next.js (App Router)
+
+React
+
+TypeScript
 
 YouTube Data API
 
 Google OAuth 2.0
 
-Inngest (background workflows)
+Inngest
 
-BrightData (scalable data collection)
+BrightData
 
-Gemini AI & Grok (content ideas and title optimization)
+Gemini AI
 
-Features
+Grok
 
-Channel and video performance analytics
-
-Secure OAuth-based authentication
-
-Interactive React dashboards for growth insights
-
-AI-powered content ideas and title optimization
-
-Background processing for analytics and data collection
-
-Getting Started
+Running locally
 npm install
 npm run dev
 
 
-Open http://localhost:3000.
+The application will be available at:
 
-Environment Variables
+http://localhost:3000
+
+Environment variables
+
+Create a .env.local file in the root directory:
+
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 YOUTUBE_API_KEY=
@@ -45,4 +60,5 @@ BRIGHTDATA_API_KEY=
 
 Deployment
 
-Optimized for deployment on Vercel.
+This project is configured for deployment on Vercel.
+Ensure all required environment variables are set in the deployment environment.
